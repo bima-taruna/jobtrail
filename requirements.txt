@@ -3,3 +3,4 @@ pydantic
 pydantic-settings
 asyncpg
 sqlmodel
+alembic
