@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from src.job_application.routes import job_application_router
+from src.auth.routes import auth_router
 from contextlib import asynccontextmanager
 from src.db.main import init_db
 @asynccontextmanager
@@ -20,3 +21,4 @@ app = FastAPI(
 )
 
 app.include_router(job_application_router, prefix=f"/api/{version}/job_applications", tags=["job_applications"])
+app.include_router(auth_router, prefix=f"/api/{version}/auth", tags=["Auth"])
