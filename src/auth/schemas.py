@@ -26,3 +26,8 @@ class UserModel(BaseModel):
     user_type:UserTypes
     created_at:datetime 
     updated_at:datetime 
+
+class UserLoginModel(BaseModel) :
+    email: str = Field(max_length=40)
+    password: str = Field(max_length=25)
+    
