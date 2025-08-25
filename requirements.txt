@@ -5,3 +5,4 @@ asyncpg
 sqlmodel
 alembic
 passlib
+pyjwt
