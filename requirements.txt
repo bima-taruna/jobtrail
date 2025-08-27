@@ -6,3 +6,4 @@ sqlmodel
 alembic
 passlib
 pyjwt
+redis
