@@ -17,7 +17,6 @@ version = "v1"
 app = FastAPI(
     title="Job Trail",
     version=version,
-    lifespan=life_span
 )
 
 app.include_router(job_application_router, prefix=f"/api/{version}/job_applications", tags=["job_applications"])
