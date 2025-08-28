@@ -10,12 +10,14 @@ from src.db.main import get_session
 from datetime import timedelta
 from fastapi.responses import JSONResponse
 from src.auth.dependencies import AccessTokenBearer
-from .dependencies import RefreshTokenBearer
+from .dependencies import RefreshTokenBearer, get_current_user, RoleChecker
 from datetime import datetime
+
 
 access_token_bearer = AccessTokenBearer()
 auth_router = APIRouter()
 users_service = UserService()
+role_checker_standard = Depends(RoleChecker(['ADMIN', 'USER', 'GUEST']))
 
 REFRESH_TOKEN_EXPIRY = 2
 
@@ -70,7 +72,7 @@ async def login_users(login_data:UserLoginModel, session: AsyncSession = Depends
         detail="invalid email or password"
     )
 
-@auth_router.get("/refresh_token")
+@auth_router.get("/refresh_token", dependencies=[role_checker_standard])
 async def get_new_access_token(token_details:dict = Depends(RefreshTokenBearer)):
     expiry_timestamp = token_details['exp']
     
@@ -87,7 +89,12 @@ async def get_new_access_token(token_details:dict = Depends(RefreshTokenBearer))
     
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
 
-@auth_router.get("/logout")
+@auth_router.get('/me', dependencies=[role_checker_standard])
+async def get_me(token_detail: dict = Depends(AccessTokenBearer()), session: AsyncSession = Depends(get_session)):
+    user = await get_current_user(token_detail=token_detail, session=session)
+    return user
+
+@auth_router.get("/logout", dependencies=[role_checker_standard])
 async def revoke_token(token_details:dict=Depends(AccessTokenBearer())):
     jti = token_details['jti']
     await add_jti_to_blocklist(jti)
