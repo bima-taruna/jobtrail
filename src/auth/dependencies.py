@@ -79,7 +79,7 @@ class RefreshTokenBearer(TokenBearer):
 
 
 async def get_current_user(
-    token_detail:dict = Depends(AccessTokenBearer),
+    token_detail:dict = Depends(AccessTokenBearer()),
     session:AsyncSession = Depends(get_session)
     ):
     user_email = token_detail['user']['email']
@@ -91,7 +91,7 @@ class RoleChecker:
         self.allowed_roles = allowed_roles
     
     def __call__(self, current_user:User=Depends(get_current_user)) -> Any:
-        if current_user.user_type in self.allowed_roles:
+        if current_user.user_type.value in self.allowed_roles:
             return True
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
