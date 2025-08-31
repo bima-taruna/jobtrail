@@ -12,11 +12,11 @@ class Status(Enum):
     ACCEPTED = "accepted"
 
 class JobApplication(BaseModel) :
-    uid:Optional[uuid.UUID] = None
+    id:Optional[uuid.UUID] = None
     job_title:str
     company_name:str
     location:str
-    application_date:str
+    application_date:datetime
     status : Status
     created_at:datetime
     updated_at:datetime
