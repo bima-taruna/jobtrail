@@ -89,7 +89,7 @@ async def get_new_access_token(token_details:dict = Depends(RefreshTokenBearer))
     
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
 
-@auth_router.get('/me', dependencies=[role_checker_standard])
+@auth_router.get('/me',response_model=UserModel, dependencies=[role_checker_standard])
 async def get_me(token_detail: dict = Depends(AccessTokenBearer()), session: AsyncSession = Depends(get_session)):
     user = await get_current_user(token_detail=token_detail, session=session)
     return user
