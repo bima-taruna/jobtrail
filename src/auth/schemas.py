@@ -2,6 +2,8 @@ from enum import Enum
 from pydantic import BaseModel, Field
 import uuid
 from datetime import datetime
+from typing import List
+from src.job_application.schemas import JobApplication
 class UserTypes(Enum):
     ADMIN = "ADMIN"
     USER = "USER"
@@ -26,6 +28,7 @@ class UserModel(BaseModel):
     user_type:UserTypes
     created_at:datetime 
     updated_at:datetime 
+    job_applications:List[JobApplication]
 
 class UserLoginModel(BaseModel) :
     email: str = Field(max_length=40)
