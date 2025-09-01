@@ -27,7 +27,9 @@ class UserModel(BaseModel):
     is_verified:bool 
     user_type:UserTypes
     created_at:datetime 
-    updated_at:datetime 
+    updated_at:datetime
+    
+class UserJobAppsModel(UserModel):
     job_applications:List[JobApplication]
 
 class UserLoginModel(BaseModel) :

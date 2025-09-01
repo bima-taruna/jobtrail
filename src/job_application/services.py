@@ -1,6 +1,6 @@
 from sqlmodel.ext.asyncio.session import AsyncSession
 from .schemas import JobApplicationCreateModel, JobApplicationUpdateModel
-from .models import JobApplication
+from ..db.models import JobApplication
 from sqlmodel import select, desc
 from datetime import datetime
 import uuid

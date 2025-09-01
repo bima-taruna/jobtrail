@@ -2,7 +2,7 @@ from fastapi import APIRouter, status, Depends
 from src.job_application.schemas import JobApplicationUpdateModel, JobApplicationCreateModel
 from fastapi.exceptions import HTTPException
 from src.db.main import get_session
-from src.job_application.models import JobApplication
+from src.db.models import JobApplication
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.job_application.services import JobApplicationService
 from src.auth.dependencies import AccessTokenBearer, RoleChecker

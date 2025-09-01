@@ -12,7 +12,7 @@ async_engine = create_async_engine(
 
 async def init_db()->None:
     async with async_engine.begin() as conn:        
-        from src.job_application.models import JobApplication # type: ignore[unused-import]
+        from src.db.models import JobApplication # type: ignore[unused-import]
         await conn.run_sync(SQLModel.metadata.create_all)
 
 
