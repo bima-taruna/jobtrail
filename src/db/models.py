@@ -76,6 +76,10 @@ class JobInterview(SQLModel, table=True):
     interview_date:date
     interviewer_name:str
     notes:str
+    created_at:datetime =  Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    updated_at:datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    deleted_at: Optional[datetime] = None
+
     job_application: Optional["JobApplication"] = Relationship(back_populates="job_interviews")
     
     def __repr__(self) -> str:

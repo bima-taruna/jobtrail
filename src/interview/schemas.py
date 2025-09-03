@@ -15,6 +15,9 @@ class JobInterview(BaseModel):
     interview_date:datetime
     interviewer_name:str
     notes:str
+    created_at:datetime
+    updated_at:datetime
+    deleted_at:Optional[datetime] = None
     
 class JobInterviewCreateModel(BaseModel):
     interview_type:JobInterviewType
