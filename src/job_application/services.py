@@ -1,20 +1,94 @@
 from sqlmodel.ext.asyncio.session import AsyncSession
 from .schemas import JobApplicationCreateModel, JobApplicationUpdateModel
-from ..db.models import JobApplication
+from ..db.models import JobApplication, JobInterview
 from sqlmodel import select, desc
 from datetime import datetime
+from typing import Optional
+from sqlalchemy import or_, func
+from sqlalchemy.sql.operators import ilike_op
 import uuid
 class JobApplicationService:
-    async def get_all_jobs(self, session : AsyncSession):
-        statement = select(JobApplication).where(JobApplication.deleted_at == None).order_by(desc(JobApplication.created_at))
-        result = await session.exec(statement)
-        return result.all()      
-    
-    async def get_user_jobs(self, user_id:str, session : AsyncSession):
-        statement = select(JobApplication).where(JobApplication.user_uid == user_id,JobApplication.deleted_at == None).order_by(desc(JobApplication.created_at))
-        result = await session.exec(statement)
-        return result.all()      
+    async def get_all_jobs(self, session : AsyncSession, page: int = 1,page_size: int = 10,search: Optional[str] = None,status: Optional[str] = None):
+        statement = select(JobApplication).where(JobApplication.deleted_at == None)
+        
+        if search:
+            statement = statement.where(
+                or_(
+                    JobApplication.company_name.ilike(f"%{search}%"),  # type: ignore[attr-defined] # prefix search
+                    JobApplication.job_title.ilike(f"%{search}%")# type: ignore[attr-defined]
+                )
+            )
+        
+        if status:
+            statement = statement.where(JobApplication.status == status)
+        
+        offset = (page - 1) * page_size
+        statement = statement.order_by(desc(JobApplication.created_at)).offset(offset).limit(page_size)
 
+        result = await session.exec(statement)
+        jobs = result.all()
+
+        count_statement = select(func.count()).select_from(JobApplication).where(JobApplication.deleted_at == None)
+        if search:
+            count_statement = count_statement.where(
+                or_(
+                    JobApplication.company_name.ilike(f"{search}%"),# type: ignore[attr-defined]
+                    JobApplication.job_title.ilike(f"{search}%")# type: ignore[attr-defined]
+                )
+            )
+        if status:
+            count_statement = count_statement.where(JobApplication.status == status)
+
+        total_result = await session.exec(count_statement)
+        total_count = total_result.one()
+
+        return {
+            "data": jobs,
+            "page": page,
+            "page_size": page_size,
+            "total": total_count
+        }
+    
+    async def get_user_jobs(self, user_id:str, session : AsyncSession, page: int = 1,page_size: int = 10,search: Optional[str] = None,status: Optional[str] = None):
+        statement = select(JobApplication).where(JobApplication.user_uid == user_id,JobApplication.deleted_at == None)
+        if search:
+            statement = statement.where(
+                or_(
+                    JobApplication.company_name.ilike(f"%{search}%"),   # type: ignore[attr-defined]# prefix search
+                    JobApplication.job_title.ilike(f"%{search}%") # type: ignore[attr-defined]
+                )
+            )
+        
+        if status:
+            statement = statement.where(JobApplication.status == status)
+        
+        offset = (page - 1) * page_size
+        statement = statement.order_by(desc(JobApplication.created_at)).offset(offset).limit(page_size)
+
+        result = await session.exec(statement)
+        jobs = result.all()
+
+        count_statement = select(func.count()).select_from(JobApplication).where(JobApplication.deleted_at == None)
+        if search:
+            count_statement = count_statement.where(
+                or_(
+                    JobApplication.company_name.ilike(f"{search}%"),# type: ignore[attr-defined]
+                    JobApplication.job_title.ilike(f"{search}%")# type: ignore[attr-defined]
+                )
+            )
+        if status:
+            count_statement = count_statement.where(JobApplication.status == status)
+
+        total_result = await session.exec(count_statement)
+        total_count = total_result.one()
+
+        return {
+            "data": jobs,
+            "page": page,
+            "page_size": page_size,
+            "total": total_count
+        }
+        
     async def get_job(self, job_uid:str, session:AsyncSession):
         statement = select(JobApplication).where(JobApplication.id == job_uid, JobApplication.deleted_at is None)
         result = await session.exec(statement)
@@ -54,6 +128,17 @@ class JobApplicationService:
         
         if job_application_to_delete is not None:
             job_application_to_delete.deleted_at = datetime.now()
+            
+            statement = select(JobInterview).where(
+                JobInterview.job_application_id == job_uid,
+                JobInterview.deleted_at == None
+            )
+            result = await session.exec(statement)
+            interviews = result.all()
+
+            for interview in interviews:
+                interview.deleted_at = datetime.now()
+
             await session.commit()
             return job_application_to_delete
         else:

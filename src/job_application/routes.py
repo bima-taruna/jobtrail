@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, status, Depends, Query
 from src.job_application.schemas import JobApplicationUpdateModel, JobApplicationCreateModel
 from fastapi.exceptions import HTTPException
 from src.db.main import get_session
@@ -6,6 +6,8 @@ from src.db.models import JobApplication
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.job_application.services import JobApplicationService
 from src.auth.dependencies import AccessTokenBearer, RoleChecker
+from src.core.pagination import PaginatedResponse
+from typing import Optional
 
 access_token_bearer = AccessTokenBearer()
 job_application_router =  APIRouter()
@@ -13,14 +15,28 @@ job_application_service = JobApplicationService()
 role_checker_standard = Depends(RoleChecker(['ADMIN', 'USER', 'GUEST']))
 role_checker_admin = Depends(RoleChecker(['ADMIN']))
 
-@job_application_router.get("/", response_model=list[JobApplication], dependencies=[role_checker_admin])
-async def get_all_jobs(session:AsyncSession = Depends(get_session), token_details:dict=Depends(access_token_bearer)):
-    job_applications = await job_application_service.get_all_jobs(session)
+@job_application_router.get("/", response_model=PaginatedResponse[JobApplication], dependencies=[role_checker_admin])
+async def get_all_jobs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, le=100),
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    session:AsyncSession = Depends(get_session), 
+    token_details:dict=Depends(access_token_bearer)
+    ):
+    job_applications = await job_application_service.get_all_jobs(session,page,page_size,search,status)
     return job_applications
 
-@job_application_router.get("/user/{user_id}", response_model=list[JobApplication], dependencies=[role_checker_standard])
-async def get_jobs_by_user_id(user_id:str,session:AsyncSession = Depends(get_session), token_details:dict=Depends(access_token_bearer)):
-    job_applications = await job_application_service.get_user_jobs(user_id,session)
+@job_application_router.get("/user/{user_id}", response_model=PaginatedResponse[JobApplication], dependencies=[role_checker_standard])
+async def get_jobs_by_user_id(
+    user_id:str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, le=100),
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    session:AsyncSession = Depends(get_session), 
+    token_details:dict=Depends(access_token_bearer)):
+    job_applications = await job_application_service.get_user_jobs(user_id,session,page,page_size,search,status)
     return job_applications
 
 @job_application_router.get("/{id}", dependencies=[role_checker_standard])
