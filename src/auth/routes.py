@@ -72,8 +72,8 @@ async def login_users(login_data:UserLoginModel, session: AsyncSession = Depends
         detail="invalid email or password"
     )
 
-@auth_router.get("/refresh_token", dependencies=[role_checker_standard])
-async def get_new_access_token(token_details:dict = Depends(RefreshTokenBearer)):
+@auth_router.get("/refresh_token")
+async def get_new_access_token(token_details:dict = Depends(RefreshTokenBearer())):
     expiry_timestamp = token_details['exp']
     
     if datetime.fromtimestamp(expiry_timestamp)>datetime.now():
