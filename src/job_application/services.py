@@ -124,7 +124,9 @@ class JobApplicationService:
             return None
     
     async def delete_job(self, job_uid:str, session:AsyncSession):
-        job_application_to_delete = await self.get_job(job_uid, session)
+        statement = select(JobApplication).where(JobApplication.id == job_uid)
+        result = await session.exec(statement)
+        job_application_to_delete = result.first()
         
         if job_application_to_delete is not None:
             job_application_to_delete.deleted_at = datetime.now()
