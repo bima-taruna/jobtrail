@@ -1,15 +1,11 @@
 from pydantic import BaseModel
-from enum import Enum
-from typing import Optional
+from src.job_application.enums import Status
+from typing import Optional, List
 from datetime import datetime
+from src.job_timeline.schemas import JobTimeline
+from src.interview.schemas import JobInterview
 import uuid
-class Status(Enum):
-    SAVED = "saved"
-    APPLIED = "applied"
-    INTERVIEWED = "interviewed"
-    OFFERED = "offered"
-    REJECTED = "rejected"
-    ACCEPTED = "accepted"
+
 
 class JobApplication(BaseModel) :
     id:Optional[uuid.UUID] = None
@@ -35,3 +31,14 @@ class JobApplicationUpdateModel(BaseModel) :
     location:Optional[str] = None
     application_date:Optional[datetime] = None
     status : Optional[Status] = None
+    
+    
+class JobApplicationDetail(BaseModel):
+    job_title:str
+    company_name:str
+    location:str
+    application_date:datetime
+    status : Status
+    timelines: Optional[List[JobTimeline]] = []
+    job_interviews: Optional[List[JobInterview]] = []
+    
