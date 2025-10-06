@@ -1,11 +1,13 @@
 from sqlmodel.ext.asyncio.session import AsyncSession
 from .schemas import JobApplicationCreateModel, JobApplicationUpdateModel
-from ..db.models import JobApplication, JobInterview
+from ..db.models import JobApplication, JobInterview, JobTimeline
 from sqlmodel import select, desc
 from datetime import datetime
 from typing import Optional
 from sqlalchemy import or_, func
+from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.operators import ilike_op
+from src.job_timeline.schemas import STATUS_TO_EVENT
 import uuid
 class JobApplicationService:
     async def get_all_jobs(self, session : AsyncSession, page: int = 1,page_size: int = 10,search: Optional[str] = None,status: Optional[str] = None):
@@ -49,7 +51,7 @@ class JobApplicationService:
             "total": total_count
         }
     
-    async def get_user_jobs(self, user_id:str, session : AsyncSession, page: int = 1,page_size: int = 10,search: Optional[str] = None,status: Optional[str] = None):
+    async def get_user_jobs(self, user_id:uuid.UUID, session : AsyncSession, page: int = 1,page_size: int = 10,search: Optional[str] = None,status: Optional[str] = None):
         statement = select(JobApplication).where(JobApplication.user_uid == user_id,JobApplication.deleted_at == None)
         if search:
             statement = statement.where(
@@ -68,7 +70,7 @@ class JobApplicationService:
         result = await session.exec(statement)
         jobs = result.all()
 
-        count_statement = select(func.count()).select_from(JobApplication).where(JobApplication.deleted_at == None)
+        count_statement = select(func.count()).select_from(JobApplication).where(JobApplication.deleted_at == None, JobApplication.user_uid == user_id)
         if search:
             count_statement = count_statement.where(
                 or_(
@@ -89,8 +91,11 @@ class JobApplicationService:
             "total": total_count
         }
         
-    async def get_job(self, job_uid:str, session:AsyncSession):
-        statement = select(JobApplication).where(JobApplication.id == job_uid, JobApplication.deleted_at is None)
+    async def get_job(self,job_uid:str, user_id:uuid.UUID, session:AsyncSession):
+        statement = select(JobApplication).where(JobApplication.id == job_uid, JobApplication.deleted_at == None, JobApplication.user_uid == user_id).options(
+            selectinload(JobApplication.timelines),  # type: ignore[arg-type]
+            selectinload(JobApplication.job_interviews)  # type: ignore[arg-type]
+        )
         result = await session.exec(statement)
         job_application = result.first()
         return job_application if job_application is not None else None
@@ -109,22 +114,34 @@ class JobApplicationService:
         return new_data
         
     
-    async def update_job(self, job_uid:str, update_data:JobApplicationUpdateModel, session:AsyncSession):
-        job_application_to_update = await self.get_job(job_uid, session)
-        
-        if job_application_to_update is not None:
-            update_data_dict = update_data.model_dump(exclude_unset=True)
-            for key,value in update_data_dict.items():
-                setattr(job_application_to_update,key,value)
-            
-            await session.commit()
+    async def update_job(self, job_uid:str, user_id:uuid.UUID,  update_data:JobApplicationUpdateModel, session:AsyncSession):
+        job_application_to_update = await self.get_job(job_uid, user_id, session)
 
-            return job_application_to_update
-        else :
+        if job_application_to_update is None :
             return None
+        
+        update_data_dict = update_data.model_dump(exclude_unset=True)
+        new_status = update_data_dict.get("status") 
+        if new_status and new_status != job_application_to_update.status:
+            event_type = STATUS_TO_EVENT.get(new_status)
+            if event_type:
+                timeline_event = JobTimeline(# type: ignore[call-arg]
+                    event_type=event_type,
+                    event_date=datetime.now(),
+                    notes="",
+                )
+                timeline_event.job_application_id = job_application_to_update.id
+                session.add(timeline_event)
+        for key, value in update_data_dict.items():
+            setattr(job_application_to_update, key, value)
+
+        await session.commit()
+        await session.refresh(job_application_to_update)
+        return job_application_to_update
+        
     
-    async def delete_job(self, job_uid:str, session:AsyncSession):
-        statement = select(JobApplication).where(JobApplication.id == job_uid)
+    async def delete_job(self, job_uid:str, user_id:uuid.UUID, session:AsyncSession):
+        statement = select(JobApplication).where(JobApplication.id == job_uid, JobApplication.user_uid ==  user_id)
         result = await session.exec(statement)
         job_application_to_delete = result.first()
         
