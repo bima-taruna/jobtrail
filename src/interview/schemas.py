@@ -26,7 +26,7 @@ class JobInterviewCreateModel(BaseModel):
     notes:str
 
 class JobInterviewUpdateModel(BaseModel):
-    interview_type:Optional[JobInterviewType]
-    interview_date:Optional[datetime]
-    interviewer_name:Optional[str]
-    notes:Optional[str]
+    interview_type:Optional[JobInterviewType] = None
+    interview_date:Optional[datetime] = None
+    interviewer_name:Optional[str] = None
+    notes:Optional[str] = None
