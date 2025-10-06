@@ -7,6 +7,7 @@ from datetime import datetime, date
 from typing import Optional, List
 from src.auth.schemas import UserTypes
 from sqlalchemy import Enum as PgEnum
+from src.job_timeline.schemas import JobApplicationEvent
 import uuid
 
 class JobApplication(SQLModel, table=True) :
@@ -31,6 +32,10 @@ class JobApplication(SQLModel, table=True) :
     deleted_at: Optional[datetime] = Field(index=True, default=None)
     user: Optional["User"] = Relationship(back_populates="job_applications")
     job_interviews: List["JobInterview"] = Relationship(back_populates="job_application", sa_relationship_kwargs={"lazy":"selectin"})
+    timelines: list["JobTimeline"] = Relationship(
+        back_populates="job_application",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
 
 
     def __repr__(self) -> str:
@@ -86,3 +91,36 @@ class JobInterview(SQLModel, table=True):
     
     def __repr__(self) -> str:
         return f"<JobInterview {self.interview_type}>"
+
+
+class JobTimeline(SQLModel, table=True):
+    model_config = {"arbitary_types_allowed" :True} # type: ignore[assignment]
+    __tablename__ = "job_timeline"# type: ignore[assignment]
+    id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+          pg.UUID,
+          nullable=False,
+          primary_key=True,
+          default=uuid.uuid4  
+        )
+    )
+    job_application_id:Optional[uuid.UUID] = Field(default=None, foreign_key="job_application.id")
+    event_type: JobApplicationEvent = Field(
+       sa_column=Column(
+           pg.ENUM(JobApplicationEvent, name="job_application_event"),
+           nullable=False,
+           index=True
+           )
+    )
+    event_date:datetime = Field(
+        sa_column=Column(pg.TIMESTAMP, default=datetime.now, nullable=False)
+    )
+    notes: Optional[str] = Field(default=None)
+    created_at:datetime =  Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    updated_at:datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
+    deleted_at: Optional[datetime] = Field(index=True, default=None)
+    job_application: Optional["JobApplication"] = Relationship(back_populates="timelines")
+
+    def __repr__(self) -> str:
+        return f"<JobTimeline {self.event_type} on {self.event_date}>"
+    
