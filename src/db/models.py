@@ -8,6 +8,7 @@ from typing import Optional, List
 from src.auth.schemas import UserTypes
 from sqlalchemy import Enum as PgEnum
 from src.job_timeline.schemas import JobApplicationEvent
+from sqlalchemy.ext.hybrid import hybrid_property
 import uuid
 
 class JobApplication(SQLModel, table=True) :
@@ -25,7 +26,14 @@ class JobApplication(SQLModel, table=True) :
     company_name:str = Field(index=True)
     location:str
     application_date:date = Field(index=True)
-    status : Status = Field(index=True, default=Status.APPLIED)
+    status:Optional["JobTimeline"] = Relationship(
+        back_populates="job_application",
+        sa_relationship_kwargs={
+            "order_by": "JobTimeline.created_at.desc()",
+            "uselist" : False,
+            "viewonly": True 
+        }
+    )
     user_uid:Optional[uuid.UUID] = Field(index=True,default=None, foreign_key="users.id")
     created_at:datetime =  Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
     updated_at:datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
@@ -37,6 +45,10 @@ class JobApplication(SQLModel, table=True) :
         sa_relationship_kwargs={"lazy": "selectin"}
     )
 
+    @property
+    def current_status(self) -> Optional[Status]:
+        """Get current status from latest timeline"""
+        return self.status.status if self.status else None
 
     def __repr__(self) -> str:
         return f"<JobApplication {self.job_title}"
@@ -65,6 +77,7 @@ class User(SQLModel, table=True) :
     updated_at:datetime = Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
     job_applications: List["JobApplication"] = Relationship(back_populates="user", sa_relationship_kwargs={"lazy":"selectin"})
 
+    
     def __repr__(self) -> str:
         return f"<User {self.username}>"
 
@@ -111,6 +124,13 @@ class JobTimeline(SQLModel, table=True):
            nullable=False,
            index=True
            )
+    )
+    status: Status = Field(
+        sa_column=Column(
+            pg.ENUM(Status, name="status"),
+            nullable=False,
+            index=True
+        )
     )
     event_date:datetime = Field(
         sa_column=Column(pg.TIMESTAMP, default=datetime.now, nullable=False)
