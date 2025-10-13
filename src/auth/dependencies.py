@@ -9,6 +9,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from .services import UserService
 from typing import Any, List
 from src.db.models import User
+from src.job_application.services import JobApplicationService
+from src.job_timeline.services import JobTimelineService
 
 user_service = UserService()
 
@@ -97,6 +99,14 @@ class RoleChecker:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="you are not permitted to perform this action"
         )
+
+def get_timeline_service() -> JobTimelineService:
+    return JobTimelineService()
+        
+def get_job_service(
+     timeline_service: JobTimelineService = Depends(get_timeline_service)
+    ) -> JobApplicationService:
+    return JobApplicationService(timeline_service = timeline_service)
         
 
 
