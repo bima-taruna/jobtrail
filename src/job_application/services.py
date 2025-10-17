@@ -5,13 +5,22 @@ from sqlmodel import select, desc
 from datetime import datetime
 from typing import Optional
 from sqlalchemy import or_, func
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.sql.operators import ilike_op
-from src.job_timeline.schemas import STATUS_TO_EVENT
+from src.job_timeline.schemas import EVENT_TO_STATUS, JobTimelineCreateModel, JobApplicationEvent
+from src.job_application.enums import Status
+from src.job_timeline.services import JobTimelineService
 import uuid
+
+STATUS_ORDER = ["saved", "applied", "interviewed", "offer", "accepted", "rejected"]
+
 class JobApplicationService:
+
+    def __init__(self, timeline_service: JobTimelineService):
+        self.timeline_service = timeline_service
+    
     async def get_all_jobs(self, session : AsyncSession, page: int = 1,page_size: int = 10,search: Optional[str] = None,status: Optional[str] = None):
-        statement = select(JobApplication).where(JobApplication.deleted_at == None)
+        statement = select(JobApplication).where(JobApplication.deleted_at == None).options(selectinload(JobApplication.status).load_only(JobTimeline.event_type)) # type: ignore
         
         if search:
             statement = statement.where(
@@ -22,7 +31,7 @@ class JobApplicationService:
             )
         
         if status:
-            statement = statement.where(JobApplication.status == status)
+            statement = statement.where(JobApplication.status == status) # type: ignore
         
         offset = (page - 1) * page_size
         statement = statement.order_by(desc(JobApplication.created_at)).offset(offset).limit(page_size)
@@ -39,7 +48,7 @@ class JobApplicationService:
                 )
             )
         if status:
-            count_statement = count_statement.where(JobApplication.status == status)
+            statement = statement.where(JobApplication.status == status) # type: ignore
 
         total_result = await session.exec(count_statement)
         total_count = total_result.one()
@@ -52,7 +61,7 @@ class JobApplicationService:
         }
     
     async def get_user_jobs(self, user_id:uuid.UUID, session : AsyncSession, page: int = 1,page_size: int = 10,search: Optional[str] = None,status: Optional[str] = None):
-        statement = select(JobApplication).where(JobApplication.user_uid == user_id,JobApplication.deleted_at == None)
+        statement = select(JobApplication).where(JobApplication.user_uid == user_id,JobApplication.deleted_at == None).options(joinedload(JobApplication.status).load_only(JobTimeline.status)) # type: ignore
         if search:
             statement = statement.where(
                 or_(
@@ -62,13 +71,13 @@ class JobApplicationService:
             )
         
         if status:
-            statement = statement.where(JobApplication.status == status)
+            statement = statement.join(JobTimeline).where(JobTimeline.status == status) # type: ignore
         
         offset = (page - 1) * page_size
         statement = statement.order_by(desc(JobApplication.created_at)).offset(offset).limit(page_size)
 
         result = await session.exec(statement)
-        jobs = result.all()
+        jobs = result.unique().all()
 
         count_statement = select(func.count()).select_from(JobApplication).where(JobApplication.deleted_at == None, JobApplication.user_uid == user_id)
         if search:
@@ -79,13 +88,15 @@ class JobApplicationService:
                 )
             )
         if status:
-            count_statement = count_statement.where(JobApplication.status == status)
+            statement = statement.join(JobTimeline).where(JobTimeline.status == status) # type: ignore
 
         total_result = await session.exec(count_statement)
         total_count = total_result.one()
 
+        data = [JobApplication.model_validate(job) for job in jobs]
+        
         return {
-            "data": jobs,
+            "data": data,
             "page": page,
             "page_size": page_size,
             "total": total_count
@@ -94,7 +105,8 @@ class JobApplicationService:
     async def get_job(self,job_uid:str, user_id:uuid.UUID, session:AsyncSession):
         statement = select(JobApplication).where(JobApplication.id == job_uid, JobApplication.deleted_at == None, JobApplication.user_uid == user_id).options(
             selectinload(JobApplication.timelines),  # type: ignore[arg-type]
-            selectinload(JobApplication.job_interviews)  # type: ignore[arg-type]
+            selectinload(JobApplication.job_interviews),  # type: ignore[arg-type]
+            joinedload(JobApplication.status).load_only(JobTimeline.status) # type: ignore[arg-type]
         )
         result = await session.exec(statement)
         job_application = result.first()
@@ -106,9 +118,22 @@ class JobApplicationService:
         new_data = JobApplication(
             **job_data_dict
         )
+        
         new_data.user_uid = user_uid
         session.add(new_data)
+        await session.flush()
         
+        await self.timeline_service.create_job_timeline(
+            JobTimelineCreateModel(
+                event_type=JobApplicationEvent.SAVED,
+                status=EVENT_TO_STATUS[JobApplicationEvent.SAVED],
+                event_date=datetime.combine(new_data.application_date, datetime.min.time()),
+                notes=""
+            ),
+            job_application_id=new_data.id,
+            user_id=new_data.user_uid,
+            session=session
+        )
         await session.commit()
         
         return new_data
@@ -121,17 +146,6 @@ class JobApplicationService:
             return None
         
         update_data_dict = update_data.model_dump(exclude_unset=True)
-        new_status = update_data_dict.get("status") 
-        if new_status and new_status != job_application_to_update.status:
-            event_type = STATUS_TO_EVENT.get(new_status)
-            if event_type:
-                timeline_event = JobTimeline(# type: ignore[call-arg]
-                    event_type=event_type,
-                    event_date=datetime.now(),
-                    notes="",
-                )
-                timeline_event.job_application_id = job_application_to_update.id
-                session.add(timeline_event)
         for key, value in update_data_dict.items():
             setattr(job_application_to_update, key, value)
 
