@@ -5,6 +5,8 @@ from src.helper.ownership import ensure_job_belongs_to_user
 from ..db.models import JobTimeline, JobApplication
 from datetime import datetime
 from src.job_timeline.schemas import JobTimelineCreateModel, JobTimelineUpdateModel, EVENT_TO_STATUS, STATUS_TO_EVENT
+from src.helper.ownership import ensure_job_belongs_to_user
+
 
 class JobTimelineService:
     async def get_all_timelines_by_app_id(self, job_application_id:str,user_id:uuid.UUID,session:AsyncSession):
@@ -29,14 +31,9 @@ class JobTimelineService:
         )
         
         new_data.job_application_id = job_application_id
+        new_data.status = EVENT_TO_STATUS[new_data.event_type]
         session.add(new_data)
 
-        new_status = EVENT_TO_STATUS.get(new_data.event_type)
-        if new_status :
-            job_app = await session.get(JobApplication, job_application_id)
-            if job_app:
-                job_app.status = new_status
-        
         await session.commit()
         await session.refresh(new_data)    
         return new_data
@@ -47,13 +44,6 @@ class JobTimelineService:
             update_data_dict = update_data.model_dump(exclude_unset=True)
             for key,value in update_data_dict.items():
                 setattr(job_timeline_to_update,key,value)
-            
-            if "event_type" in update_data_dict:
-                new_status = EVENT_TO_STATUS.get(job_timeline_to_update.event_type)
-                if new_status:
-                    job_app = await session.get(JobApplication, job_application_id)
-                    if job_app:
-                        job_app.status = new_status
             
             await session.commit()
             return job_timeline_to_update
@@ -66,23 +56,28 @@ class JobTimelineService:
         
             job_timeline_to_delete.deleted_at = datetime.now()
             
-            statement = (
-                select(JobTimeline)
-                .where(
-                    JobTimeline.job_application_id == job_application_id,
-                    JobTimeline.deleted_at == None
-                )
-                .order_by(desc(JobTimeline.event_date))
-            )
-            result = await session.exec(statement)
-            latest_event = result.first()
-            if latest_event:
-                new_status = EVENT_TO_STATUS.get(latest_event.event_type)
-                if new_status:
-                    job_app = await session.get(JobApplication, job_application_id)
-                    if job_app:
-                        job_app.status = new_status
             await session.commit()
             return job_timeline_to_delete
         else:
             return None
+    
+    async def undo_job_timeline(self, job_application_id: str, user_id: uuid.UUID, session: AsyncSession):
+        await ensure_job_belongs_to_user(str(job_application_id), user_id, session)
+    
+        statement = select(JobTimeline).where(
+            JobTimeline.job_application_id == job_application_id,
+            JobTimeline.deleted_at == None  
+        ).order_by(desc(JobTimeline.created_at))
+    
+        result = await session.exec(statement)
+        all_timelines = result.all()
+    
+        if len(all_timelines) < 1:
+            return None
+        
+        latest_timeline = all_timelines[0]
+    
+        await session.delete(latest_timeline)
+        await session.commit()
+        
+        return latest_timeline

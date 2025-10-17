@@ -1,28 +1,26 @@
 from fastapi import APIRouter, status, Depends
-from src.auth.dependencies import AccessTokenBearer, RoleChecker, get_current_user
+from src.auth.dependencies import  RoleChecker, get_current_user, get_timeline_service
 from src.db.models import JobTimeline, User
 from src.db.main import get_session
 from sqlmodel.ext.asyncio.session import AsyncSession
 from .services import JobTimelineService
 from fastapi.exceptions import HTTPException
+from fastapi.responses import JSONResponse
 from src.job_timeline.schemas import JobTimelineCreateModel, JobTimelineUpdateModel
 
 job_timeline_router = APIRouter(
     prefix="/job-applications/{job_application_id}/job-timelines",
     tags=["Job Timelines"]
 )
-access_token_bearer = AccessTokenBearer()
-job_timeline_services = JobTimelineService()
-
 
 role_checker_standard = Depends(RoleChecker(['ADMIN', 'USER', 'GUEST']))
 @job_timeline_router.get("/", response_model=list[JobTimeline], dependencies=[role_checker_standard])
-async def get_all_job_timelines(job_application_id:str,session:AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)):
+async def get_all_job_timelines(job_application_id:str,session:AsyncSession = Depends(get_session), job_timeline_services:JobTimelineService = Depends(get_timeline_service), current_user: User = Depends(get_current_user)):
     job_timelines =  await job_timeline_services.get_all_timelines_by_app_id(job_application_id,current_user.id,session)
     return job_timelines  
 
 @job_timeline_router.get("/{job_timeline_id}", response_model=JobTimeline, dependencies=[role_checker_standard])
-async def get_job_timeline_by_id(job_application_id:str, job_timeline_id:str, session:AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)):
+async def get_job_timeline_by_id(job_application_id:str, job_timeline_id:str, session:AsyncSession = Depends(get_session), job_timeline_services:JobTimelineService = Depends(get_timeline_service), current_user: User = Depends(get_current_user)):
     job_timeline = job_timeline_services.get_timelines_by_id(job_application_id,job_timeline_id,current_user.id,session)
     if job_timeline is not None :
         return job_timeline
@@ -33,12 +31,12 @@ async def get_job_timeline_by_id(job_application_id:str, job_timeline_id:str, se
         )
 
 @job_timeline_router.post("/", status_code=status.HTTP_201_CREATED, response_model=JobTimeline, response_model_exclude_none=True, dependencies=[role_checker_standard])
-async def create_job_application(job_application_id,timeline_data:JobTimelineCreateModel, session:AsyncSession = Depends(get_session),current_user: User = Depends(get_current_user) ) :
+async def create_job_application(job_application_id,timeline_data:JobTimelineCreateModel, session:AsyncSession = Depends(get_session),job_timeline_services:JobTimelineService = Depends(get_timeline_service),current_user: User = Depends(get_current_user) ) :
     job_timeline = await job_timeline_services.create_job_timeline(timeline_data,job_application_id, current_user.id, session)
     return job_timeline
 
 @job_timeline_router.patch("/{timeline_id}", response_model_exclude_none=True, dependencies=[role_checker_standard])
-async def update_job_application(job_application_id:str,job_timeline_id : str,update_data:JobTimelineUpdateModel,session:AsyncSession = Depends(get_session),current_user: User = Depends(get_current_user)) :
+async def update_job_application(job_application_id:str,job_timeline_id : str,update_data:JobTimelineUpdateModel,session:AsyncSession = Depends(get_session),job_timeline_services:JobTimelineService = Depends(get_timeline_service),current_user: User = Depends(get_current_user)) :
     update_timeline_data = await job_timeline_services.update_job_timeline(job_application_id,job_timeline_id,current_user.id,update_data,session)
     
     if update_timeline_data:
@@ -50,7 +48,7 @@ async def update_job_application(job_application_id:str,job_timeline_id : str,up
         )
 
 @job_timeline_router.delete("/{timeline_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[role_checker_standard])
-async def delete_job_application(job_application_id:str,timeline_id:str,session:AsyncSession = Depends(get_session),current_user: User = Depends(get_current_user) ) :
+async def delete_job_application(job_application_id:str,timeline_id:str,session:AsyncSession = Depends(get_session),job_timeline_services:JobTimelineService = Depends(get_timeline_service),current_user: User = Depends(get_current_user) ) :
     delete_data = await job_timeline_services.delete_job_timeline(job_application_id, timeline_id, current_user.id, session)
     if delete_data:
         return None
@@ -59,4 +57,19 @@ async def delete_job_application(job_application_id:str,timeline_id:str,session:
             status_code=404,
             detail="timeline not found"
         ) 
+
+@job_timeline_router.delete("/", status_code=status.HTTP_204_NO_CONTENT, dependencies=[role_checker_standard])
+async def undo_job_timeline(job_application_id:str,session:AsyncSession = Depends(get_session),job_timeline_services:JobTimelineService = Depends(get_timeline_service),current_user: User = Depends(get_current_user) ) :
+    delete_data =  await job_timeline_services.undo_job_timeline(job_application_id, current_user.id, session)
+    if delete_data:
+        return JSONResponse(
+                content={
+                    "message" : "Success Undo",
+                }
+            )
+    else :
+        raise HTTPException(
+            status_code=404,
+            detail="timeline not found"
+        )
 
