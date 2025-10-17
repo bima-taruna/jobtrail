@@ -13,7 +13,7 @@ class JobApplication(BaseModel) :
     company_name:str
     location:str
     application_date:datetime
-    status : Status
+    current_status:Optional[Status] = None
     created_at:datetime
     updated_at:datetime
     deleted_at:Optional[datetime] =None
@@ -23,14 +23,12 @@ class JobApplicationCreateModel(BaseModel):
     company_name:str
     location:str
     application_date:datetime
-    status : Status
     
 class JobApplicationUpdateModel(BaseModel) :
     job_title:Optional[str] = None
     company_name:Optional[str] = None
     location:Optional[str] = None
     application_date:Optional[datetime] = None
-    status : Optional[Status] = None
     
     
 class JobApplicationDetail(BaseModel):
@@ -38,7 +36,7 @@ class JobApplicationDetail(BaseModel):
     company_name:str
     location:str
     application_date:datetime
-    status : Status
+    current_status : Optional[Status] = None
     timelines: Optional[List[JobTimeline]] = []
     job_interviews: Optional[List[JobInterview]] = []
     
