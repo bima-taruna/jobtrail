@@ -20,6 +20,7 @@ class JobApplicationEvent(str, Enum):
 class JobTimeline(BaseModel) :
     id:Optional[uuid.UUID] = None
     event_type:JobApplicationEvent
+    status: Status
     event_date:datetime
     notes:str
     created_at:datetime
@@ -28,6 +29,7 @@ class JobTimeline(BaseModel) :
 
 class JobTimelineCreateModel(BaseModel):
     event_type:JobApplicationEvent
+    status:Optional[Status] = None
     event_date:datetime
     notes:str
 
