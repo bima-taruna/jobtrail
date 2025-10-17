@@ -132,8 +132,8 @@ class JobTimeline(SQLModel, table=True):
             index=True
         )
     )
-    event_date:datetime = Field(
-        sa_column=Column(pg.TIMESTAMP, default=datetime.now, nullable=False)
+    event_date:date = Field(
+        default=datetime.now()
     )
     notes: Optional[str] = Field(default=None)
     created_at:datetime =  Field(sa_column=Column(pg.TIMESTAMP, default=datetime.now))
