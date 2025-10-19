@@ -81,3 +81,28 @@ class JobTimelineService:
         await session.commit()
         
         return latest_timeline
+    
+    async def reset_job_timeline(self, job_application_id: str, user_id: uuid.UUID, session: AsyncSession):
+        await ensure_job_belongs_to_user(str(job_application_id), user_id, session)
+    
+        statement = select(JobTimeline).where(
+            JobTimeline.job_application_id == job_application_id,
+            JobTimeline.deleted_at == None  
+        ).order_by(desc(JobTimeline.created_at))
+    
+        result = await session.exec(statement)
+        all_timelines = result.all()
+    
+        if len(all_timelines) < 1:
+            return None
+        
+        timelines_to_delete = all_timelines[:-1]
+        
+        for timeline in timelines_to_delete:
+            await session.delete(timeline)
+
+        await session.commit()
+        
+        return True
+    
+    

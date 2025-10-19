@@ -35,6 +35,34 @@ async def create_job_application(job_application_id,timeline_data:JobTimelineCre
     job_timeline = await job_timeline_services.create_job_timeline(timeline_data,job_application_id, current_user.id, session)
     return job_timeline
 
+@job_timeline_router.delete("/undo", status_code=status.HTTP_204_NO_CONTENT, dependencies=[role_checker_standard])
+async def undo_job_timeline(job_application_id:str,session:AsyncSession = Depends(get_session),job_timeline_services:JobTimelineService = Depends(get_timeline_service),current_user: User = Depends(get_current_user) ) :
+    delete_data =  await job_timeline_services.undo_job_timeline(job_application_id, current_user.id, session)
+    if delete_data:
+        return JSONResponse(
+                content={
+                    "message" : "Success Undo",
+                }
+            )
+    else :
+        raise HTTPException(
+            status_code=404,
+            detail="timeline not found"
+        )
+@job_timeline_router.delete("/reset", status_code=status.HTTP_204_NO_CONTENT, dependencies=[role_checker_standard])
+async def reset_job_timeline(job_application_id:str,session:AsyncSession = Depends(get_session),job_timeline_services:JobTimelineService = Depends(get_timeline_service),current_user: User = Depends(get_current_user) ) :
+    delete_data =  await job_timeline_services.reset_job_timeline(job_application_id, current_user.id, session)
+    if delete_data:
+        return JSONResponse(
+                content={
+                    "message" : "Success Reset the timeline",
+                }
+            )
+    else :
+        raise HTTPException(
+            status_code=404,
+            detail="timeline not found"
+        )
 @job_timeline_router.patch("/{timeline_id}", response_model_exclude_none=True, dependencies=[role_checker_standard])
 async def update_job_application(job_application_id:str,job_timeline_id : str,update_data:JobTimelineUpdateModel,session:AsyncSession = Depends(get_session),job_timeline_services:JobTimelineService = Depends(get_timeline_service),current_user: User = Depends(get_current_user)) :
     update_timeline_data = await job_timeline_services.update_job_timeline(job_application_id,job_timeline_id,current_user.id,update_data,session)
@@ -57,19 +85,4 @@ async def delete_job_application(job_application_id:str,timeline_id:str,session:
             status_code=404,
             detail="timeline not found"
         ) 
-
-@job_timeline_router.delete("/", status_code=status.HTTP_204_NO_CONTENT, dependencies=[role_checker_standard])
-async def undo_job_timeline(job_application_id:str,session:AsyncSession = Depends(get_session),job_timeline_services:JobTimelineService = Depends(get_timeline_service),current_user: User = Depends(get_current_user) ) :
-    delete_data =  await job_timeline_services.undo_job_timeline(job_application_id, current_user.id, session)
-    if delete_data:
-        return JSONResponse(
-                content={
-                    "message" : "Success Undo",
-                }
-            )
-    else :
-        raise HTTPException(
-            status_code=404,
-            detail="timeline not found"
-        )
 
