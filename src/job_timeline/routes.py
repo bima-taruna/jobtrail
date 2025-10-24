@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, status, Depends, Body
 from src.auth.dependencies import  RoleChecker, get_current_user, get_timeline_service
 from src.db.models import JobTimeline, User
 from src.db.main import get_session
@@ -86,3 +86,14 @@ async def delete_job_application(job_application_id:str,timeline_id:str,session:
             detail="timeline not found"
         ) 
 
+@job_timeline_router.patch("/{timeline_id}", response_model_exclude_none=True, dependencies=[role_checker_standard])
+async def update_timeline_note(job_application_id:str,job_timeline_id : str,note_update:str = Body(...),session:AsyncSession = Depends(get_session),job_timeline_services:JobTimelineService = Depends(get_timeline_service),current_user: User = Depends(get_current_user)) :
+    update_note_data = await job_timeline_services.update_timeline_note(job_application_id,job_timeline_id,current_user.id,note_update,session)
+    
+    if update_note_data:
+        return update_note_data
+    else :
+        raise HTTPException(
+            status_code=404,
+            detail="timeline not found"
+        )
