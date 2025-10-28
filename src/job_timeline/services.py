@@ -105,9 +105,9 @@ class JobTimelineService:
         
         return True
     
-    async def update_timeline_note(self, job_application_id:str, job_timeline_id:str, user_id:uuid.UUID,note_update:str,session: AsyncSession):
+    async def update_timeline_note(self, job_application_id:str, timeline_id:str, user_id:uuid.UUID,note_update:str,session: AsyncSession):
         await ensure_job_belongs_to_user(str(job_application_id), user_id, session)
-        job_timeline_to_update = await self.get_timelines_by_id(job_application_id,job_timeline_id, user_id,session)
+        job_timeline_to_update = await self.get_timelines_by_id(job_application_id,timeline_id, user_id,session)
         if job_timeline_to_update is not None:
             job_timeline_to_update.notes = note_update
             await session.commit()

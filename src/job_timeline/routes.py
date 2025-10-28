@@ -17,7 +17,7 @@ role_checker_standard = Depends(RoleChecker(['ADMIN', 'USER', 'GUEST']))
 @job_timeline_router.get("/", response_model=list[JobTimeline], dependencies=[role_checker_standard])
 async def get_all_job_timelines(job_application_id:str,session:AsyncSession = Depends(get_session), job_timeline_services:JobTimelineService = Depends(get_timeline_service), current_user: User = Depends(get_current_user)):
     job_timelines =  await job_timeline_services.get_all_timelines_by_app_id(job_application_id,current_user.id,session)
-    return job_timelines  
+    return job_timelines
 
 @job_timeline_router.get("/{job_timeline_id}", response_model=JobTimeline, dependencies=[role_checker_standard])
 async def get_job_timeline_by_id(job_application_id:str, job_timeline_id:str, session:AsyncSession = Depends(get_session), job_timeline_services:JobTimelineService = Depends(get_timeline_service), current_user: User = Depends(get_current_user)):
@@ -66,7 +66,7 @@ async def reset_job_timeline(job_application_id:str,session:AsyncSession = Depen
 @job_timeline_router.patch("/{timeline_id}", response_model_exclude_none=True, dependencies=[role_checker_standard])
 async def update_job_application(job_application_id:str,job_timeline_id : str,update_data:JobTimelineUpdateModel,session:AsyncSession = Depends(get_session),job_timeline_services:JobTimelineService = Depends(get_timeline_service),current_user: User = Depends(get_current_user)) :
     update_timeline_data = await job_timeline_services.update_job_timeline(job_application_id,job_timeline_id,current_user.id,update_data,session)
-    
+
     if update_timeline_data:
         return update_data
     else :
@@ -84,12 +84,12 @@ async def delete_job_application(job_application_id:str,timeline_id:str,session:
         raise HTTPException(
             status_code=404,
             detail="timeline not found"
-        ) 
+        )
 
 @job_timeline_router.patch("/{timeline_id}", response_model_exclude_none=True, dependencies=[role_checker_standard])
 async def update_timeline_note(job_application_id:str,job_timeline_id : str,note_update:str = Body(...),session:AsyncSession = Depends(get_session),job_timeline_services:JobTimelineService = Depends(get_timeline_service),current_user: User = Depends(get_current_user)) :
     update_note_data = await job_timeline_services.update_timeline_note(job_application_id,job_timeline_id,current_user.id,note_update,session)
-    
+
     if update_note_data:
         return update_note_data
     else :
