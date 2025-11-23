@@ -1,16 +1,14 @@
 import uuid
-from sqlmodel import select, desc
+from datetime import datetime
+from sqlmodel import desc, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.helper.ownership import ensure_job_belongs_to_user
-from ..db.models import JobTimeline, JobApplication
-from datetime import datetime
 from src.job_timeline.schemas import (
+    EVENT_TO_STATUS,
     JobTimelineCreateModel,
     JobTimelineUpdateModel,
-    EVENT_TO_STATUS,
-    STATUS_TO_EVENT,
 )
-from src.helper.ownership import ensure_job_belongs_to_user
+from ..db.models import  JobTimeline
 
 
 class JobTimelineService:
